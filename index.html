@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DASCA · Signal Lab</title>
+  <meta name="description" content="Browser-side glitch, datamosh, pixel sort and shader lab for images, video and webcam." />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Syne:wght@700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+  <header class="top">
+    <div class="brand">
+      <span class="logo" data-text="DASCA">DASCA</span>
+      <span class="sub">signal lab <em>v0.1</em></span>
+    </div>
+    <div class="group" id="sources">
+      <button data-src="demo" class="on">DEMO</button>
+      <button id="btnFile">LOAD</button>
+      <button data-src="cam">CAM</button>
+      <input type="file" id="file" accept="image/*,video/*" hidden />
+      <select id="res" title="Processing resolution">
+        <option value="540">540p</option>
+        <option value="720" selected>720p</option>
+        <option value="1080">1080p</option>
+        <option value="1440">1440p</option>
+      </select>
+    </div>
+    <div class="group">
+      <button id="btnMic" title="Feed the microphone into the modulation bus">MIC</button>
+      <button id="btnClipAudio" title="Use the loaded clip's own soundtrack as modulation" hidden>CLIP AUDIO</button>
+    </div>
+    <div class="group grow"></div>
+    <div class="group">
+      <button id="btnDice" class="accent" title="Random chain (D)">⚄ CHAOS</button>
+      <button id="btnKick" title="Force a keyframe: resets all feedback (K)">KICK</button>
+      <button id="btnPause" title="Pause (Space)">PAUSE</button>
+    </div>
+    <div class="group">
+      <button id="btnSnap" title="PNG (S)">PNG</button>
+      <button id="btnGif" title="3 second GIF (G)">GIF</button>
+      <button id="btnRec" class="rec" title="Record video (R)">● REC</button>
+      <button id="btnRender" title="Render the whole clip from the start" hidden>RENDER CLIP</button>
+      <button id="btnShare" title="Copy a link that contains this chain">SHARE</button>
+    </div>
+  </header>
+
+  <main>
+    <aside class="lib">
+      <div class="panel-h">EFFECTS <span class="hint">click to add</span></div>
+      <div id="library"></div>
+      <div class="panel-h">PRESETS</div>
+      <div id="presets"></div>
+    </aside>
+
+    <section class="stage" id="stage">
+      <canvas id="view"></canvas>
+      <div class="drop" id="drop">DROP TO LOAD</div>
+      <div class="hud">
+        <span id="fps">-- fps</span>
+        <span id="dims">--</span>
+        <span class="brushhud">brush <input type="range" id="brush" min="0.02" max="0.3" step="0.005" value="0.08" /></span>
+        <span class="tip">drag on the image to mosh it</span>
+      </div>
+    </section>
+
+    <aside class="chain">
+      <div class="panel-h">CHAIN <span id="count" class="hint"></span><button id="btnClear" class="mini">CLEAR</button></div>
+      <div id="stack"></div>
+      <div class="empty" id="empty">Chain is empty.<br />Add effects from the left, pick a preset, or hit <b>CHAOS</b>.</div>
+    </aside>
+  </main>
+
+  <footer class="ticker"><span id="log">ready.</span></footer>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
