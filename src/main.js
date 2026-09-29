@@ -23,7 +23,7 @@ let engine;
 try {
   engine = new Engine(canvas);
 } catch (e) {
-  document.body.innerHTML = `<div class="fatal">DASCA needs WebGL2.<br><small>${e.message}</small></div>`;
+  document.body.innerHTML = `<div class="fatal">PHOSPHENE needs WebGL2.<br><small>${e.message}</small></div>`;
   throw e;
 }
 const mod = new Modulator();
@@ -364,7 +364,7 @@ function toggleRec() {
     $('#btnRec').classList.remove('live');
     $('#btnRec').textContent = '● REC';
   } else {
-    const kind = recorder.start((blob, ext) => { if (!blob.size) { log('recording came back empty: this browser could not encode the canvas'); return; } saveBlob(blob, `dasca-${Date.now()}.${ext}`); log(`saved ${ext.toUpperCase()} · ${(blob.size / 1e6).toFixed(1)} MB`); });
+    const kind = recorder.start((blob, ext) => { if (!blob.size) { log('recording came back empty: this browser could not encode the canvas'); return; } saveBlob(blob, `phosphene-${Date.now()}.${ext}`); log(`saved ${ext.toUpperCase()} · ${(blob.size / 1e6).toFixed(1)} MB`); });
     $('#btnRec').classList.add('live');
     $('#btnRec').textContent = '■ STOP';
     log(`recording ${kind}…`);
@@ -392,7 +392,7 @@ function renderClip() {
 }
 
 function snap() {
-  canvas.toBlob((b) => { saveBlob(b, `dasca-${Date.now()}.png`); log('saved PNG'); }, 'image/png');
+  canvas.toBlob((b) => { saveBlob(b, `phosphene-${Date.now()}.png`); log('saved PNG'); }, 'image/png');
 }
 
 let gifBusy = false;
@@ -403,7 +403,7 @@ async function gif() {
   log('capturing GIF · 3s');
   try {
     const blob = await captureGif(canvas, { seconds: 3, fps: 15, maxW: 540, onProgress: (p) => { $('#btnGif').textContent = `GIF ${Math.round(p * 100)}%`; } });
-    saveBlob(blob, `dasca-${Date.now()}.gif`);
+    saveBlob(blob, `phosphene-${Date.now()}.gif`);
     log(`saved GIF · ${(blob.size / 1e6).toFixed(1)} MB`);
   } catch (e) {
     log(`gif failed: ${e.message}`);
@@ -569,4 +569,4 @@ if (fromHash && fromHash.length) {
 requestAnimationFrame(frame);
 
 // handy from the devtools console
-window.dasca = { state, engine, addLayer, loadChain, chaos };
+window.phosphene = { state, engine, addLayer, loadChain, chaos };

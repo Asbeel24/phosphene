@@ -1,4 +1,6 @@
-# DASCA · Signal Lab
+# PHOSPHENE
+
+*Phosphene: the light you see with your eyes closed.*
 
 A browser-side lab for breaking images, video and webcam feeds. Everything runs on the GPU (WebGL2) in the page: nothing is uploaded anywhere.
 

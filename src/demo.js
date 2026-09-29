@@ -57,10 +57,10 @@ export function makeDemo(w = 1280, h = 720) {
 
     // wordmark
     x.save();
-    x.font = `900 ${h * 0.2}px "Syne", system-ui, sans-serif`;
+    x.font = `900 ${h * 0.15}px "Syne", system-ui, sans-serif`;
     x.textAlign = 'center'; x.textBaseline = 'middle';
     x.fillStyle = '#fff';
-    x.fillText('DASCA', w / 2 + Math.sin(t * 2) * 12, h * 0.8);
+    x.fillText('PHOSPHENE', w / 2 + Math.sin(t * 2) * 12, h * 0.8);
     x.font = `500 ${h * 0.03}px "JetBrains Mono", monospace`;
     x.fillStyle = 'rgba(255,255,255,0.8)';
     x.fillText('DROP AN IMAGE OR VIDEO · OR TURN ON THE CAMERA', w / 2, h * 0.93);
