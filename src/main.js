@@ -334,7 +334,8 @@ canvas.addEventListener('pointerdown', (e) => {
     engine.split = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
     return;
   }
-  if (!state.layers.some((l) => l.type === 'smear' && l.on)) { addLayer('smear'); log('+ MOSH BRUSH (auto)'); }
+  const paints = state.layers.some((l) => l.on && ((l.type === 'smear') || (l.type === 'datamosh' && Math.round(l.params.map) === 5) || (l.type === 'ghost' && Math.round(l.params.field) === 5)));
+  if (!paints) { addLayer('smear'); log('+ MOSH BRUSH (auto)'); }
   engine.brushDown = 1;
   last = null;
   pointer(e);
@@ -440,6 +441,31 @@ async function share() {
 
 // ───────────────────────────── wiring
 $('#btnFile').onclick = () => $('#file').click();
+$('#btnDonor').onclick = () => $('#donorFile').click();
+$('#donorFile').onchange = (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const url = URL.createObjectURL(file);
+  const done = (el) => {
+    engine.setDonor(el);
+    $('#btnDonor').classList.add('on');
+    let L = state.layers.find((l) => l.type === 'datamosh');
+    if (!L) L = addLayer('datamosh', {}, {}, 0);
+    L.params.mode = 1;
+    state.kick = true;
+    renderStack();
+    log(`donor · ${file.name} · DATAMOSH switched to transplant`);
+  };
+  if (file.type.startsWith('video')) {
+    const v = h('video', { playsinline: '', loop: '' });
+    v.muted = true; v.loop = true; v.src = url;
+    v.onloadeddata = () => { v.play(); done(v); };
+  } else {
+    const img = new Image();
+    img.onload = () => done(img);
+    img.src = url;
+  }
+};
 $('#file').onchange = (e) => loadFile(e.target.files[0]);
 document.querySelector('[data-src="demo"]').onclick = useDemo;
 document.querySelector('[data-src="cam"]').onclick = useCam;
@@ -513,6 +539,10 @@ function frame(now) {
   for (const L of active) {
     for (const q of BY_ID[L.type].params) L.live[q.k] = mod.apply(q, L.params[q.k], L.mods[q.k], state.t, L.phase);
   }
+
+  let carry = 0;
+  for (const L of active) if (L.type === 'datamosh') carry = Math.max(carry, L.live.carry);
+  engine.flowCarry = carry;
 
   let upload = true;
   if (state.src === 'demo') demo.draw(state.t);

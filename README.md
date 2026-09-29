@@ -4,10 +4,10 @@ A browser-side lab for breaking images, video and webcam feeds. Everything runs 
 
 ## What's inside
 
-- **Sources**: built-in animated test signal, image or video files (drag and drop), webcam. Processing resolution 540p to 1440p.
+- **Sources**: built-in animated test signal, image or video files (drag and drop), webcam. Processing resolution 540p to 1440p. DONOR loads a second image or video for motion transplant.
 - **Effect chain**: stack any number of layers, reorder by dragging or with the arrows, bypass, duplicate, randomize a single layer.
 - **24 effects**
-  - Time / motion (these keep memory of previous frames): Datamosh (block optical flow drags the previous output forward, I-frames refresh at random), Pixel Sort (GPU odd-even sort that advances a little every frame, so the image melts), Time Slice (slit-scan from a 32-frame buffer: rows, columns, radial, noise or luminance pick the moment), Echo Tunnel (video feedback), Mosh Brush (drag on the canvas to tear pixels along your stroke).
+  - Time / motion (these keep memory of previous frames): Datamosh (a per-frame optical-flow field drags the previous output forward; classic, transplant and bloom modes, motion carry, auto cuts, and maps that confine the mosh to highlights, shadows, a radial or angled gradient, or painted areas), Pixel Sort (GPU odd-even sort that advances a little every frame, so the image melts), Ghost (a time field over a 64-frame buffer: gradient, radial, point, noise, luminance or painted fields drive slit-scan, trails, freezes and directional smears, with stretch and depth warp), Echo Tunnel (video feedback), Mosh Brush (drag on the canvas to tear pixels along your stroke).
   - Glitch: RGB Split, Block Crash (some blocks pulled from older frames).
   - Analog: CRT (grille / shadow / slot masks, misconvergence), Composite (NTSC chroma smear, ringing, dot crawl), Tape Deck (wobble, head-switching tear, dropouts, chroma delay), Phosphor (persistence and halation), Interlace, VHS.
   - Stylize: Dither (Bayer, 1-bit / Game Boy / CGA / acid palettes), ASCII, Halftone (mono / CMY / RGB screens), Pixelate / LED, Edge Glow.

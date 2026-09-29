@@ -16,6 +16,8 @@ uniform sampler2D u_hist;   // this layer's own previous output (feedback layers
 uniform sampler2D u_brush;  // mosh brush field: rg = velocity, b = strength
 uniform sampler2D u_glyph;  // ascii atlas, 16 glyphs in a row
 uniform sampler2DArray u_ring; // recent source frames (time machine)
+uniform sampler2D u_flow;   // motion field between the last two source frames (encoded)
+uniform sampler2D u_donor;  // second source for motion transplant
 uniform vec2 u_res;
 uniform vec2 u_ringRes;
 uniform float u_time;
@@ -54,6 +56,9 @@ vec3 ring(vec2 uv, float back){
   return texture(u_ring, vec3(uv, l)).rgb;
 }
 vec4 T(vec2 uv){ return texture(u_tex, uv); }
+// motion in uv units per frame
+vec2 flowAt(vec2 uv){ return (texture(u_flow, uv).rg - 0.5) * 16.0 / u_ringRes; }
+float flowConf(vec2 uv){ return texture(u_flow, uv).b; }
 `;
 
 export const COPY_FRAG = `#version 300 es
@@ -98,4 +103,28 @@ void main(){
     c = mix(c, vec3(0.78, 1.0, 0.0), smoothstep(1.5, 0.5, d));
   }
   o = vec4(c, 1.0);
+}`;
+
+// Global motion estimation (Lucas-Kanade over a small window, ring resolution).
+// Output rg = flow in ring pixels / 16 + 0.5, b = confidence. u_carry adds inertia from last frame.
+export const FLOW_BODY = `
+uniform float u_carry;
+void main(){
+  vec2 e = 1.0 / u_ringRes;
+  float sxx=0., syy=0., sxy=0., sxt=0., syt=0., dif=0.;
+  for(int j=-3;j<=3;j++) for(int i=-3;i<=3;i++){
+    vec2 p = v_uv + vec2(i,j) * e * 1.5;
+    float c = luma(ring(p,0.)), pr = luma(ring(p,1.));
+    float ix = (luma(ring(p+vec2(e.x,0),0.)) - luma(ring(p-vec2(e.x,0),0.))) * 0.5;
+    float iy = (luma(ring(p+vec2(0,e.y),0.)) - luma(ring(p-vec2(0,e.y),0.))) * 0.5;
+    float it = c - pr;
+    sxx += ix*ix; syy += iy*iy; sxy += ix*iy; sxt += ix*it; syt += iy*it; dif += abs(it);
+  }
+  float det = sxx*syy - sxy*sxy;
+  vec2 f = det > 1e-7 ? -vec2(syy*sxt - sxy*syt, sxx*syt - sxy*sxt) / det : vec2(0);
+  f = clamp(f, -8.0, 8.0);
+  vec2 prev = (texture(u_hist, v_uv).rg - 0.5) * 16.0;
+  f = f + prev * u_carry;
+  f = clamp(f, -7.9, 7.9);
+  o = vec4(f / 16.0 + 0.5, clamp(dif * 4.0, 0.0, 1.0), 1.0);
 }`;

@@ -27,6 +27,25 @@ export const PRESETS = [
     ['interlace', { rate: 0.5, shift: 2, dark: 0.2 }],
     ['crt', { mtype: 3, curve: 0.1, lines: 300, glow: 0.1 }],
   ] },
+  { name: 'Motion Transplant', chain: [
+    ['datamosh', { mode: 1, amount: 3, carry: 0.5, key: 0, bleed: 0.004, block: 8 }],
+    ['tone', { contrast: 1.15, sat: 1.3 }],
+  ] },
+  { name: 'Bloom Hold', chain: [
+    ['datamosh', { mode: 2, amount: 2.5, carry: 0.85, block: 12, cut: 6 }],
+    ['rgbshift', { amount: 0.004 }],
+  ] },
+  { name: 'Ghost Trails', chain: [
+    ['ghost', { field: 0, mode: 1, depth: 50, angle: 0 }],
+    ['tone', { contrast: 1.2, sat: 1.4 }],
+  ] },
+  { name: 'Frozen Horizon', chain: [
+    ['ghost', { field: 0, mode: 2, thresh: 0.55, angle: 1.57 }, { thresh: ['sine', 0.08, 0.3] }],
+    ['crt', { mtype: 3, curve: 0.05, scan: 0.3 }],
+  ] },
+  { name: 'Time Smear', chain: [
+    ['ghost', { field: 3, mode: 3, depth: 30, angle: 0.5, warp: 0.05 }],
+  ] },
   { name: 'Melt Signal', chain: [
     ['datamosh', { amount: 2.2, drift: 0.35, key: 0.002 }],
     ['rgbshift', { amount: 0.008, mode: 2 }, { amount: ['bass', 1, 0.3] }],
@@ -58,7 +77,7 @@ export const PRESETS = [
     ['echo', { decay: 0.85, zoom: -0.02, spin: 0.03, hue: 0.05, blend: 2 }],
   ] },
   { name: 'Time Worm', chain: [
-    ['timeslice', { mode: 2, depth: 31 }],
+    ['ghost', { field: 1, depth: 48 }],
     ['liquid', { amp: 0.04, freq: 2 }],
     ['dither', { pal: 3, scale: 3 }],
   ] },

@@ -10,34 +10,40 @@ export const EFFECTS = [
   // ───────────────────────────── TIME / MOTION
   {
     id: 'datamosh', name: 'DATAMOSH', cat: 'time', feedback: true,
-    tag: 'I-frames go missing. Motion drags the past forward.',
-    params: [P('block', 'block', 4, 64, 16, 1), P('amount', 'motion', 0, 4, 1.4), P('drift', 'drift', 0, 1, 0.15),
-      P('key', 'keyframe', 0, 0.2, 0.004), P('bleed', 'bleed', 0, 0.3, 0.01)],
+    tag: 'I-frames go missing and motion vectors drag the past forward. Transplant mode pushes the DONOR image around with this clip\'s motion.',
+    params: [O('mode', 'mode', ['classic', 'transplant', 'bloom']), O('map', 'map', ['full', 'luma', 'shadows', 'radial', 'gradient', 'brush']),
+      P('block', 'block', 1, 64, 16, 1), P('amount', 'motion', 0, 6, 1.6), P('carry', 'carry', 0, 0.98, 0.3),
+      P('drift', 'drift', 0, 1, 0.15), P('key', 'keyframe', 0, 0.2, 0.004), P('cut', 'auto cut s', 0, 10, 0, 0.1),
+      P('bleed', 'bleed', 0, 0.3, 0.01), P('angle', 'map angle', 0, 6.283, 1.57)],
+    carry: 'carry',
     body: `
 void main(){
   vec2 bs = vec2(p_block) / u_res;
   vec2 cell = (floor(v_uv / bs) + 0.5) * bs;
-  vec2 e = 1.0 / u_ringRes;
-  float sxx=0., syy=0., sxy=0., sxt=0., syt=0., dif=0.;
-  for(int j=-2;j<=2;j++) for(int i=-2;i<=2;i++){
-    vec2 p = cell + vec2(i,j) * bs * 0.22;
-    float c = luma(ring(p,0.)), pr = luma(ring(p,1.));
-    float ix = (luma(ring(p+vec2(e.x,0),0.)) - luma(ring(p-vec2(e.x,0),0.))) * 0.5;
-    float iy = (luma(ring(p+vec2(0,e.y),0.)) - luma(ring(p-vec2(0,e.y),0.))) * 0.5;
-    float it = c - pr;
-    sxx += ix*ix; syy += iy*iy; sxy += ix*iy; sxt += ix*it; syt += iy*it; dif += abs(it);
-  }
-  float det = sxx*syy - sxy*sxy + 1e-6;
-  vec2 flow = -vec2(syy*sxt - sxy*syt, sxx*syt - sxy*sxt) / det;
-  flow = clamp(flow, -12.0, 12.0) * e;
+  vec2 flow = flowAt(cell);
   vec2 dn = vec2(fbm(cell*3.0 + u_time*0.1), fbm(cell*3.0 - u_time*0.1 + 9.0)) - 0.5;
   vec2 disp = flow * p_amount + dn * p_drift * 0.02;
+  if (p_mode > 1.5) disp *= 1.0 + 2.0 * smoothstep(0.0, 0.02, length(flow));
   vec4 held = texture(u_hist, v_uv - disp);
-  vec4 now = T(v_uv);
+  vec4 fresh = p_mode > 0.5 && p_mode < 1.5 ? texture(u_donor, v_uv) : T(v_uv);
+
+  // where the mosh is allowed to live
+  float m = 1.0;
+  vec3 src = T(v_uv).rgb;
+  if (p_map > 0.5 && p_map < 1.5) m = smoothstep(0.3, 0.7, luma(src));
+  else if (p_map > 1.5 && p_map < 2.5) m = smoothstep(0.6, 0.2, luma(src));
+  else if (p_map > 2.5 && p_map < 3.5) m = smoothstep(0.15, 0.45, length((v_uv - 0.5) * vec2(u_res.x/u_res.y, 1.0)));
+  else if (p_map > 3.5 && p_map < 4.5) m = smoothstep(0.2, 0.8, dot(v_uv - 0.5, vec2(cos(p_angle), sin(p_angle))) + 0.5);
+  else if (p_map > 4.5) m = texture(u_brush, v_uv).b;
+
   float refresh = step(hash3(vec3(cell * 91.0, floor(u_time * 12.0))), p_key);
+  if (p_mode > 1.5) refresh = 0.0;
+  if (p_cut > 0.05 && fract(u_time / p_cut) < 0.03) refresh = 1.0;
   refresh = max(refresh, u_kick);
   if (u_frame < 2.0) refresh = 1.0;
-  o = mix(held, now, clamp(refresh + p_bleed, 0.0, 1.0));
+  float k = clamp(refresh + p_bleed, 0.0, 1.0);
+  vec4 moshed = mix(held, fresh, k);
+  o = mix(T(v_uv), moshed, m);
 }`,
   },
   {
@@ -68,19 +74,56 @@ void main(){
 }`,
   },
   {
-    id: 'timeslice', name: 'TIME SLICE', cat: 'time',
-    tag: 'Every region lives in a different moment. Slit-scan from the frame buffer.',
-    params: [O('mode', 'map', ['rows', 'cols', 'radial', 'noise', 'luma']), P('depth', 'depth', 0, 31, 24, 1), P('mix', 'mix', 0, 1, 1)],
+    id: 'ghost', name: 'GHOST', cat: 'time', feedback: true,
+    tag: 'A time field decides when each part of the frame lives: slit-scan, freezes, stretched trails and smears, up to 64 frames deep.',
+    params: [O('field', 'field', ['gradient', 'radial', 'point', 'noise', 'luma', 'brush']), O('mode', 'mode', ['slice', 'trails', 'freeze', 'smear']),
+      P('depth', 'depth', 0, 63, 40, 1), P('angle', 'angle', 0, 6.283, 1.57), P('curve', 'stretch', 0.2, 4, 1),
+      P('scroll', 'scroll', -2, 2, 0), P('thresh', 'freeze at', 0, 1, 0.5), P('warp', 'depth warp', 0, 0.2, 0), P('mix', 'mix', 0, 1, 1)],
     body: `
-void main(){
+float field(vec2 uv){
   float f;
-  if (p_mode < 0.5) f = v_uv.y;
-  else if (p_mode < 1.5) f = v_uv.x;
-  else if (p_mode < 2.5) f = length((v_uv - 0.5) * vec2(u_res.x/u_res.y, 1.0)) * 1.4;
-  else if (p_mode < 3.5) f = fbm(v_uv * 3.0 + u_time * 0.05);
-  else f = luma(T(v_uv).rgb);
-  vec3 c = ring(v_uv, clamp(f, 0.0, 1.0) * p_depth);
-  o = vec4(mix(T(v_uv).rgb, c, p_mix), 1.0);
+  vec2 asp = vec2(u_res.x/u_res.y, 1.0);
+  if (p_field < 0.5) f = dot(uv - 0.5, vec2(cos(p_angle), sin(p_angle))) + 0.5;
+  else if (p_field < 1.5) f = length((uv - 0.5) * asp) * 1.4;
+  else if (p_field < 2.5) f = length((uv - u_mouse) * asp) * 1.6;
+  else if (p_field < 3.5) f = fbm(uv * 3.0 + u_time * 0.05);
+  else if (p_field < 4.5) f = luma(T(uv).rgb);
+  else f = 1.0 - texture(u_brush, uv).b;
+  f = fract(clamp(f, 0.0, 0.9999) + u_time * p_scroll * 0.1);
+  return pow(f, p_curve);
+}
+void main(){
+  vec2 uv = v_uv;
+  if (p_warp > 0.0) {
+    float d = luma(T(uv).rgb) - 0.5;
+    uv += vec2(cos(p_angle), sin(p_angle)) * d * p_warp;
+  }
+  float f = field(uv);
+  vec3 now = T(v_uv).rgb;
+  vec3 c;
+  if (p_mode < 0.5) {
+    c = ring(uv, f * p_depth);
+  } else if (p_mode < 1.5) {
+    // echoes spread back through time, fading with age
+    c = vec3(0); float w = 0.0;
+    for (int i = 0; i < 8; i++) {
+      float t = float(i) / 7.0;
+      float wi = 1.0 - t * 0.8;
+      c = max(c, ring(uv, t * f * p_depth) * wi);
+    }
+  } else if (p_mode < 2.5) {
+    vec3 h = texture(u_hist, v_uv).rgb;
+    c = f > p_thresh && u_frame > 2.0 && u_kick < 0.5 ? h : ring(uv, 0.0);
+  } else {
+    vec2 dir = vec2(cos(p_angle), sin(p_angle)) / u_res * 6.0;
+    c = vec3(0);
+    for (int i = 0; i < 12; i++) {
+      float t = float(i) / 11.0;
+      c += ring(uv - dir * t * f * p_depth, t * f * p_depth);
+    }
+    c /= 12.0;
+  }
+  o = vec4(mix(now, c, p_mix), 1.0);
 }`,
   },
   {

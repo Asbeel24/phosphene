@@ -1,7 +1,8 @@
-import { VERT, PRELUDE, COPY_FRAG, BRUSH_FRAG, PRESENT_FRAG } from './glsl.js';
+import { VERT, PRELUDE, COPY_FRAG, BRUSH_FRAG, PRESENT_FRAG, FLOW_BODY } from './glsl.js';
 import { BY_ID } from './effects.js';
 
-const RING = 32;
+const RING = 64;
+const RING_MAX = 640;
 const GLYPHS = ' .,:-~=+*oxO#%@█';
 
 export class Engine {
@@ -29,6 +30,10 @@ export class Engine {
     this.copyProg = this.compile(COPY_FRAG, 'copy');
     this.brushProg = this.compile(BRUSH_FRAG, 'brush');
     this.presentProg = this.compile(PRESENT_FRAG, 'present');
+    this.flowProg = this.compile(PRELUDE + FLOW_BODY, 'flow');
+    this.flowCarry = 0;
+    this.donorTex = this.tex(2, 2);
+    this.donorEl = null;
     this.split = -1;
     this.rawTex = this.tex(2, 2);
     this.dummy = this.tex(2, 2);
@@ -60,7 +65,7 @@ export class Engine {
       loc[u.name] = gl.getUniformLocation(p, u.name);
     }
     gl.useProgram(p);
-    const units = { u_tex: 0, u_src: 1, u_hist: 2, u_brush: 3, u_glyph: 4, u_ring: 5 };
+    const units = { u_tex: 0, u_src: 1, u_hist: 2, u_brush: 3, u_glyph: 4, u_ring: 5, u_flow: 6, u_donor: 7 };
     for (const [k, v] of Object.entries(units)) if (loc[k]) gl.uniform1i(loc[k], v);
     return { p, loc };
   }
@@ -120,12 +125,17 @@ export class Engine {
     h = Math.max(16, Math.round(h / 2) * 2);
     this.w = w; this.h = h;
     this.canvas.width = w; this.canvas.height = h;
-    for (const t of [this.a, this.b, this.src, this.brushA, this.brushB]) if (t) gl.deleteTexture(t);
+    for (const t of [this.a, this.b, this.src, this.brushA, this.brushB, this.flowA, this.flowB]) if (t) gl.deleteTexture(t);
     if (this.ring) gl.deleteTexture(this.ring);
     this.a = this.tex(w, h);
     this.b = this.tex(w, h);
     this.src = this.tex(w, h);
-    this.rw = Math.max(8, w >> 1); this.rh = Math.max(8, h >> 1);
+    const rs = Math.min(0.5, RING_MAX / Math.max(w, h));
+    this.rw = Math.max(8, Math.round(w * rs)); this.rh = Math.max(8, Math.round(h * rs));
+    this.flowA = this.tex(this.rw, this.rh);
+    this.flowB = this.tex(this.rw, this.rh);
+    this.clear(this.flowA, [0.5, 0.5, 0, 1]);
+    this.clear(this.flowB, [0.5, 0.5, 0, 1]);
     this.brushA = this.tex(this.rw, this.rh);
     this.brushB = this.tex(this.rw, this.rh);
     this.clear(this.brushA, [0.5, 0.5, 0, 1]);
@@ -168,6 +178,19 @@ export class Engine {
     try {
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, gl.RGBA, gl.UNSIGNED_BYTE, el);
     } catch (e) { /* frame not ready */ }
+  }
+
+  setDonor(el) {
+    this.donorEl = el;
+    if (el) this.uploadTo(this.donorTex, el);
+  }
+
+  uploadTo(tex, el) {
+    const gl = this.gl;
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+    try { gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, gl.RGBA, gl.UNSIGNED_BYTE, el); } catch (e) { /* not ready */ }
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
   }
 
   draw(prog, out, w, h) {
@@ -216,12 +239,30 @@ export class Engine {
     [this.brushA, this.brushB] = [this.brushB, this.brushA];
     this.vel = [this.vel[0] * 0.6, this.vel[1] * 0.6];
 
+    // 3b. motion field
+    const fp = this.flowProg;
+    gl.useProgram(fp.p);
+    this.bind(6, this.dummy);
+    this.bind(2, this.flowA);
+    this.bind(5, this.ring, gl.TEXTURE_2D_ARRAY);
+    gl.uniform2f(fp.loc.u_ringRes, this.rw, this.rh);
+    gl.uniform1f(fp.loc.u_ringHead, this.ringHead);
+    gl.uniform1f(fp.loc.u_ringSize, RING);
+    gl.uniform1f(fp.loc.u_carry, this.flowCarry);
+    this.draw(fp, this.flowB, this.rw, this.rh);
+    [this.flowA, this.flowB] = [this.flowB, this.flowA];
+
+    // donor video keeps playing
+    if (this.donorEl && this.donorEl.tagName === 'VIDEO' && this.donorEl.readyState >= 2) this.uploadTo(this.donorTex, this.donorEl);
+
     // 4. effect chain
     let input = this.src;
     this.bind(1, this.src);
     this.bind(3, this.brushA);
     this.bind(4, this.glyph);
     this.bind(5, this.ring, gl.TEXTURE_2D_ARRAY);
+    this.bind(6, this.flowA);
+    this.bind(7, this.donorTex);
     for (const L of layers) {
       const fx = BY_ID[L.type];
       const prog = this.effectProgram(L.type);
