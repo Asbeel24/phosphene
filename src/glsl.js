@@ -82,3 +82,20 @@ void main(){
   s = max(s, k);
   o = vec4(v * 0.5 + 0.5, s, 1.0);
 }`;
+
+// Final blit to screen, with an optional before/after split (u_split < 0 = off).
+export const PRESENT_FRAG = `#version 300 es
+precision highp float;
+in vec2 v_uv; out vec4 o;
+uniform sampler2D u_tex, u_src;
+uniform float u_split;
+uniform vec2 u_res;
+void main(){
+  vec3 c = texture(u_tex, v_uv).rgb;
+  if (u_split >= 0.0) {
+    if (v_uv.x < u_split) c = texture(u_src, v_uv).rgb;
+    float d = abs(v_uv.x - u_split) * u_res.x;
+    c = mix(c, vec3(0.78, 1.0, 0.0), smoothstep(1.5, 0.5, d));
+  }
+  o = vec4(c, 1.0);
+}`;

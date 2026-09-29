@@ -6,13 +6,15 @@ A browser-side lab for breaking images, video and webcam feeds. Everything runs 
 
 - **Sources**: built-in animated test signal, image or video files (drag and drop), webcam. Processing resolution 540p to 1440p.
 - **Effect chain**: stack any number of layers, reorder by dragging or with the arrows, bypass, duplicate, randomize a single layer.
-- **19 effects**
+- **24 effects**
   - Time / motion (these keep memory of previous frames): Datamosh (block optical flow drags the previous output forward, I-frames refresh at random), Pixel Sort (GPU odd-even sort that advances a little every frame, so the image melts), Time Slice (slit-scan from a 32-frame buffer: rows, columns, radial, noise or luminance pick the moment), Echo Tunnel (video feedback), Mosh Brush (drag on the canvas to tear pixels along your stroke).
-  - Glitch: RGB Split, Block Crash (some blocks pulled from older frames), VHS, CRT.
+  - Glitch: RGB Split, Block Crash (some blocks pulled from older frames).
+  - Analog: CRT (grille / shadow / slot masks, misconvergence), Composite (NTSC chroma smear, ringing, dot crawl), Tape Deck (wobble, head-switching tear, dropouts, chroma delay), Phosphor (persistence and halation), Interlace, VHS.
   - Stylize: Dither (Bayer, 1-bit / Game Boy / CGA / acid palettes), ASCII, Halftone (mono / CMY / RGB screens), Pixelate / LED, Edge Glow.
   - Space: Liquid (domain-warped noise), Kaleido, Mirror Tile.
   - Color: Thermal Map, Color Crush.
 - **Modulation**: every parameter has a ∿ button. Drive it with sine / triangle / saw / square LFOs, random sample and hold, smooth drift, the microphone (level, bass, treble), the loaded clip's own soundtrack, or the mouse position.
+- **A|B compare**: press C (or A|B) and drag on the image to split the original and the processed signal.
 - **CHAOS**: one key builds a random chain with random modulation. KICK forces a keyframe and resets all feedback.
 - **Export**: PNG snapshot, 3 second GIF, live recording (MP4 where the browser can encode it, otherwise WebM), and RENDER CLIP, which re-plays a loaded video from the start and records the full processed clip.
 - **Share**: SHARE copies a link whose URL contains the whole chain, parameters and modulation included.

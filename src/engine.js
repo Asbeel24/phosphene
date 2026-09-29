@@ -1,4 +1,4 @@
-import { VERT, PRELUDE, COPY_FRAG, BRUSH_FRAG } from './glsl.js';
+import { VERT, PRELUDE, COPY_FRAG, BRUSH_FRAG, PRESENT_FRAG } from './glsl.js';
 import { BY_ID } from './effects.js';
 
 const RING = 32;
@@ -28,6 +28,8 @@ export class Engine {
 
     this.copyProg = this.compile(COPY_FRAG, 'copy');
     this.brushProg = this.compile(BRUSH_FRAG, 'brush');
+    this.presentProg = this.compile(PRESENT_FRAG, 'present');
+    this.split = -1;
     this.rawTex = this.tex(2, 2);
     this.dummy = this.tex(2, 2);
     this.glyph = this.makeGlyphs();
@@ -260,9 +262,12 @@ export class Engine {
     }
 
     // 5. present
+    const pp = this.presentProg;
+    gl.useProgram(pp.p);
     this.bind(0, input);
-    gl.useProgram(this.copyProg.p);
-    gl.uniform1f(this.copyProg.loc.u_flipY, 0);
-    this.draw(this.copyProg, null);
+    this.bind(1, this.src);
+    gl.uniform1f(pp.loc.u_split, this.split);
+    gl.uniform2f(pp.loc.u_res, this.w, this.h);
+    this.draw(pp, null);
   }
 }

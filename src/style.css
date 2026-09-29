@@ -72,6 +72,7 @@ aside { background: var(--panel); overflow-y: auto; scrollbar-width: thin; scrol
 .preset:hover { color: var(--text); border-left-color: var(--mag); }
 .c-time { color: var(--mag); }
 .c-glitch { color: var(--cyan); }
+.c-analog { color: #ff7a45; }
 .c-stylize { color: var(--acid); }
 .c-space { color: var(--amber); }
 .c-color { color: #b69cff; }
@@ -117,7 +118,7 @@ aside { background: var(--panel); overflow-y: auto; scrollbar-width: thin; scrol
 .mini:hover { color: var(--text); border-color: var(--line); }
 .mini.x:hover { color: var(--red); }
 .tag { padding: 6px 12px 2px; color: var(--dim); font-size: 11px; font-style: italic; }
-.prm { display: grid; grid-template-columns: 70px 1fr 48px 22px; gap: 8px; align-items: center; padding: 3px 10px 3px 12px; }
+.prm { display: grid; grid-template-columns: 86px 1fr 46px 22px; gap: 8px; align-items: center; padding: 3px 10px 3px 12px; }
 .prm label { color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .prm.modded label { color: var(--mag); }
 .prm .val { text-align: right; font-variant-numeric: tabular-nums; color: var(--text); font-size: 11px; }

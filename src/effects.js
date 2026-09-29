@@ -159,7 +159,7 @@ void main(){
 }`,
   },
   {
-    id: 'vhs', name: 'VHS', cat: 'glitch',
+    id: 'vhs', name: 'VHS', cat: 'analog',
     tag: 'Tape from a flea market, recorded over three times.',
     params: [P('jitter', 'jitter', 0, 1, 0.3), P('bleed', 'bleed', 0, 1, 0.5), P('noise', 'noise', 0, 1, 0.25), P('track', 'tracking', 0, 1, 0.3)],
     body: `
@@ -182,27 +182,138 @@ void main(){
 }`,
   },
   {
-    id: 'crt', name: 'CRT', cat: 'glitch',
-    tag: 'Phosphor, curvature, aperture grille.',
-    params: [P('curve', 'curve', 0, 0.5, 0.15), P('scan', 'scanlines', 0, 1, 0.5), P('mask', 'mask', 0, 1, 0.4), P('glow', 'glow', 0, 1, 0.3), P('vig', 'vignette', 0, 1, 0.5)],
+    id: 'crt', name: 'CRT', cat: 'analog',
+    tag: 'Curved glass, scanlines, a choice of phosphor masks, slight misconvergence.',
+    params: [P('curve', 'curve', 0, 0.5, 0.15), P('lines', 'lines', 120, 1080, 480, 1), P('scan', 'scanlines', 0, 1, 0.5),
+      O('mtype', 'mask', ['grille', 'shadow', 'slot', 'none']), P('mask', 'mask amt', 0, 1, 0.45), P('conv', 'converge', 0, 3, 0.6),
+      P('glow', 'glow', 0, 1, 0.3), P('vig', 'vignette', 0, 1, 0.5)],
     body: `
 void main(){
   vec2 c = v_uv * 2.0 - 1.0;
   c *= 1.0 + p_curve * dot(c.yx, c.yx) * 0.5;
   vec2 uv = c * 0.5 + 0.5;
   if (uv.x < 0.0 || uv.y < 0.0 || uv.x > 1.0 || uv.y > 1.0) { o = vec4(0,0,0,1); return; }
-  vec3 col = T(uv).rgb;
+  vec2 cv = vec2(p_conv / u_res.x, 0.0) * (1.0 + length(c));
+  vec3 col = vec3(T(uv + cv).r, T(uv).g, T(uv - cv).b);
   vec3 g = (T(uv + vec2(0.003,0)).rgb + T(uv - vec2(0.003,0)).rgb + T(uv + vec2(0,0.003)).rgb + T(uv - vec2(0,0.003)).rgb) * 0.25;
   col += g * g * p_glow;
-  col *= 1.0 - p_scan * 0.5 * (0.5 + 0.5 * sin(uv.y * u_res.y * PI));
-  float m = mod(floor(v_uv.x * u_res.x), 3.0);
-  vec3 msk = m < 1.0 ? vec3(1, .3, .3) : m < 2.0 ? vec3(.3, 1, .3) : vec3(.3, .3, 1);
-  col *= mix(vec3(1), msk * 1.6, p_mask);
+  float sl = 0.5 + 0.5 * cos(uv.y * p_lines * 2.0 * PI);
+  col *= 1.0 - p_scan * (1.0 - sl) * (1.0 - luma(col) * 0.4);
+  vec2 px = floor(v_uv * u_res);
+  vec3 msk = vec3(1);
+  if (p_mtype < 0.5) {
+    float m = mod(px.x, 3.0);
+    msk = m < 1.0 ? vec3(1, .25, .25) : m < 2.0 ? vec3(.25, 1, .25) : vec3(.25, .25, 1);
+  } else if (p_mtype < 1.5) {
+    float m = mod(px.x + mod(px.y, 2.0) * 1.5, 3.0);
+    msk = m < 1.0 ? vec3(1, .25, .25) : m < 2.0 ? vec3(.25, 1, .25) : vec3(.25, .25, 1);
+    msk *= 0.75 + 0.25 * mod(px.y, 2.0);
+  } else if (p_mtype < 2.5) {
+    float m = mod(px.x, 3.0);
+    msk = m < 1.0 ? vec3(1, .25, .25) : m < 2.0 ? vec3(.25, 1, .25) : vec3(.25, .25, 1);
+    float slot = mod(px.y + step(3.0, mod(px.x, 6.0)) * 2.0, 4.0) < 1.0 ? 0.5 : 1.0;
+    msk *= slot;
+  }
+  col *= mix(vec3(1), msk * 1.5, p_mask);
   col *= 1.0 - p_vig * dot(c, c) * 0.4;
   o = vec4(col, 1.0);
 }`,
   },
-
+  {
+    id: 'composite', name: 'COMPOSITE', cat: 'analog',
+    tag: 'NTSC over a cheap RCA cable: smeared chroma, ringing edges, crawling dots.',
+    params: [P('chroma', 'chroma blur', 0, 1, 0.6), P('ring', 'ringing', 0, 1, 0.35), P('crawl', 'dot crawl', 0, 1, 0.25),
+      P('phase', 'phase error', -0.2, 0.2, 0.02), P('sat', 'saturation', 0, 2, 1.1)],
+    body: `
+const mat3 toY = mat3(0.299,0.596,0.211, 0.587,-0.274,-0.523, 0.114,-0.322,0.312);
+const mat3 toR = mat3(1.0,1.0,1.0, 0.956,-0.272,-1.106, 0.621,-0.647,1.703);
+void main(){
+  vec2 e = vec2(1.0 / u_res.x, 0.0);
+  vec3 yiq = toY * T(v_uv).rgb;
+  vec2 acc = vec2(0); float wsum = 0.0;
+  for (int i = -6; i <= 6; i++) {
+    float w = exp(-float(i*i) / (1.0 + p_chroma * 18.0));
+    acc += (toY * T(v_uv + e * float(i) * (1.0 + p_chroma * 2.0)).rgb).yz * w; wsum += w;
+  }
+  yiq.yz = acc / wsum;
+  float yl = (toY * T(v_uv - e * 2.0).rgb).x, yr = (toY * T(v_uv + e * 2.0).rgb).x;
+  yiq.x += (yiq.x - (yl + yr) * 0.5) * p_ring * 2.5;
+  yiq.x += (toY * T(v_uv - e * 5.0).rgb).x * p_ring * 0.12 - p_ring * 0.06;
+  vec2 px = floor(v_uv * u_res);
+  float sub = sin((px.x + px.y * 2.0 + u_frame) * PI * 0.5);
+  yiq.x += sub * length(yiq.yz) * p_crawl * 0.6;
+  float a = p_phase * PI;
+  yiq.yz = mat2(cos(a), -sin(a), sin(a), cos(a)) * yiq.yz * p_sat;
+  o = vec4(toR * yiq, 1.0);
+}`,
+  },
+  {
+    id: 'tape', name: 'TAPE DECK', cat: 'analog',
+    tag: 'Worn transport: wobble, head-switching tear, dropouts, late chroma.',
+    params: [P('wobble', 'wobble', 0, 1, 0.3), P('head', 'head switch', 0, 1, 0.6), P('drop', 'dropouts', 0, 1, 0.2),
+      P('delay', 'chroma delay', 0, 1, 0.4), P('soft', 'softness', 0, 1, 0.4), P('age', 'wear', 0, 1, 0.3)],
+    body: `
+void main(){
+  vec2 uv = v_uv;
+  uv.x += (sin(uv.y * 6.0 + u_time * 1.3) * 0.6 + sin(uv.y * 23.0 - u_time * 3.1) * 0.4) * 0.004 * p_wobble;
+  float hs = smoothstep(0.035 * (0.5 + p_head), 0.0, uv.y);
+  uv.x += hs * (0.05 + 0.03 * sin(u_time * 40.0 + uv.y * 200.0)) * p_head;
+  vec2 e = vec2(1.0 / u_res.x, 0.0) * (1.0 + p_soft * 3.0);
+  vec3 c = (T(uv - e).rgb + T(uv).rgb * 2.0 + T(uv + e).rgb) * 0.25;
+  vec3 cd = T(uv + vec2(p_delay * 0.006, -p_delay * 0.004)).rgb;
+  float y = luma(c);
+  c = y + (cd - luma(cd));
+  float line = floor(uv.y * u_res.y * 0.5);
+  float dr = hash(vec2(line, floor(u_time * 24.0)));
+  if (dr < p_drop * 0.02) {
+    float x0 = hash(vec2(line, floor(u_time * 24.0) + 3.0));
+    float len = 0.05 + 0.2 * hash(vec2(line, 9.0));
+    if (uv.x > x0 && uv.x < x0 + len) c = mix(c, vec3(0.95), 0.85);
+  }
+  c += (hash(uv * u_res + u_time) - 0.5) * p_age * 0.18;
+  c = mix(c, c * vec3(1.05, 0.97, 0.9) + 0.03, p_age);
+  c *= 1.0 - hs * 0.4;
+  o = vec4(c, 1.0);
+}`,
+  },
+  {
+    id: 'phosphor', name: 'PHOSPHOR', cat: 'analog', feedback: true,
+    tag: 'Slow phosphor decay with halation: highlights leave glowing trails.',
+    params: [P('persist', 'persistence', 0, 0.97, 0.7), P('green', 'P31 green', 0, 1, 0.3), P('halo', 'halation', 0, 2, 0.6), P('radius', 'radius', 1, 12, 5)],
+    body: `
+void main(){
+  vec3 n = T(v_uv).rgb;
+  vec3 h = texture(u_hist, v_uv).rgb;
+  vec3 dec = vec3(p_persist) * mix(vec3(1), vec3(0.85, 1.0, 0.8), p_green);
+  vec3 c = max(n, h * dec);
+  vec3 b = vec3(0); float w = 0.0;
+  for (int i = 0; i < 12; i++) {
+    float a = float(i) * 2.39996;
+    float r = sqrt(float(i) + 0.5) / 3.5 * p_radius;
+    vec2 d = vec2(cos(a), sin(a)) * r / u_res * 3.0;
+    vec3 s = T(v_uv + d).rgb;
+    b += s * smoothstep(0.55, 1.0, luma(s)); w += 1.0;
+  }
+  c += (b / w) * p_halo * vec3(1.0, 0.75, 0.6);
+  if (u_frame < 2.0 || u_kick > 0.5) c = n;
+  o = vec4(c, 1.0);
+}`,
+  },
+  {
+    id: 'interlace', name: 'INTERLACE', cat: 'analog', feedback: true,
+    tag: 'Two fields, never quite in sync. Motion combs.',
+    params: [P('rate', 'field rate', 0, 1, 1), P('shift', 'field shift', -4, 4, 0.5), P('dark', 'line dim', 0, 1, 0.1)],
+    body: `
+void main(){
+  float line = floor(v_uv.y * u_res.y);
+  float field = mod(floor(u_frame * p_rate), 2.0);
+  bool mine = mod(line, 2.0) == field;
+  vec3 n = T(v_uv + vec2(p_shift * (field - 0.5) / u_res.x, 0.0)).rgb;
+  vec3 h = texture(u_hist, v_uv).rgb;
+  vec3 c = mine || u_frame < 2.0 ? n : h * (1.0 - p_dark);
+  o = vec4(c, 1.0);
+}`,
+  },
   // ───────────────────────────── STYLIZE
   {
     id: 'dither', name: 'DITHER', cat: 'stylize',
@@ -389,6 +500,7 @@ export const BY_ID = Object.fromEntries(EFFECTS.map((e) => [e.id, e]));
 export const CATS = [
   ['time', 'TIME / MOTION'],
   ['glitch', 'GLITCH'],
+  ['analog', 'ANALOG'],
   ['stylize', 'STYLIZE'],
   ['space', 'SPACE'],
   ['color', 'COLOR'],

@@ -1,6 +1,32 @@
 // Curated starting chains. Format: [type, params, mods] where mods = { key: [source, rate, depth] }.
 
 export const PRESETS = [
+  { name: 'Broadcast 1987', chain: [
+    ['composite', { chroma: 0.7, ring: 0.4, crawl: 0.3 }],
+    ['interlace', { shift: 1 }],
+    ['crt', { mtype: 1, mask: 0.5, curve: 0.18, lines: 480 }],
+  ] },
+  { name: 'Trinitron Night', chain: [
+    ['tone', { contrast: 1.25, sat: 1.3 }],
+    ['phosphor', { persist: 0.8, halo: 0.9 }],
+    ['crt', { mtype: 0, mask: 0.6, curve: 0.06, conv: 1.2, glow: 0.5 }],
+  ] },
+  { name: 'Dub Tape', chain: [
+    ['tape', { wobble: 0.6, head: 0.8, drop: 0.5, delay: 0.7, age: 0.6 }, { wobble: ['drift', 0.3, 0.3] }],
+    ['composite', { chroma: 0.9, sat: 0.8 }],
+    ['vhs', { jitter: 0.4, noise: 0.3, track: 0.2 }],
+  ] },
+  { name: 'Arcade Cabinet', chain: [
+    ['pixelate', { size: 4, gap: 0 }],
+    ['phosphor', { persist: 0.5, halo: 1.3, radius: 8 }],
+    ['crt', { mtype: 2, mask: 0.7, curve: 0.3, lines: 240, scan: 0.8 }],
+  ] },
+  { name: 'Security Cam', chain: [
+    ['tone', { sat: 0, contrast: 1.4 }],
+    ['tape', { wobble: 0.1, head: 0.3, soft: 0.7, age: 0.2 }],
+    ['interlace', { rate: 0.5, shift: 2, dark: 0.2 }],
+    ['crt', { mtype: 3, curve: 0.1, lines: 300, glow: 0.1 }],
+  ] },
   { name: 'Melt Signal', chain: [
     ['datamosh', { amount: 2.2, drift: 0.35, key: 0.002 }],
     ['rgbshift', { amount: 0.008, mode: 2 }, { amount: ['bass', 1, 0.3] }],

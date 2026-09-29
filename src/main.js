@@ -314,14 +314,32 @@ function pointer(e) {
   mod.mouse = [Math.min(1, Math.max(0, u)), Math.min(1, Math.max(0, v))];
 }
 canvas.addEventListener('pointermove', pointer);
+let comparing = false, splitting = false;
+function toggleCompare() {
+  comparing = !comparing;
+  engine.split = comparing ? 0.5 : -1;
+  $('#btnCompare').classList.toggle('on', comparing);
+  $('.hud .tip').textContent = comparing ? 'drag to move the before / after split' : 'drag on the image to mosh it';
+}
+canvas.addEventListener('pointermove', (e) => {
+  if (!splitting) return;
+  const r = canvas.getBoundingClientRect();
+  engine.split = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
+});
 canvas.addEventListener('pointerdown', (e) => {
   canvas.setPointerCapture(e.pointerId);
+  if (comparing) {
+    splitting = true;
+    const r = canvas.getBoundingClientRect();
+    engine.split = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
+    return;
+  }
   if (!state.layers.some((l) => l.type === 'smear' && l.on)) { addLayer('smear'); log('+ MOSH BRUSH (auto)'); }
   engine.brushDown = 1;
   last = null;
   pointer(e);
 });
-const up = () => { engine.brushDown = 0; };
+const up = () => { engine.brushDown = 0; splitting = false; };
 canvas.addEventListener('pointerup', up);
 canvas.addEventListener('pointercancel', up);
 $('#brush').addEventListener('input', (e) => { engine.brushSize = parseFloat(e.target.value); });
@@ -458,6 +476,7 @@ $('#btnGif').onclick = gif;
 $('#btnRec').onclick = toggleRec;
 $('#btnRender').onclick = renderClip;
 $('#btnShare').onclick = share;
+$('#btnCompare').onclick = () => toggleCompare();
 $('#btnClear').onclick = () => { state.layers = []; renderStack(); };
 
 function togglePause() {
@@ -475,6 +494,7 @@ window.addEventListener('keydown', (e) => {
   else if (k === 's') snap();
   else if (k === 'r') toggleRec();
   else if (k === 'g') gif();
+  else if (k === 'c') toggleCompare();
 });
 
 // ───────────────────────────── loop
@@ -513,7 +533,7 @@ if (fromHash && fromHash.length) {
   renderStack();
   log('chain loaded from link');
 } else {
-  loadChain(PRESETS[0].chain);
+  loadChain(PRESETS.find((p) => p.name === 'Melt Signal').chain);
   log('ready. drop media, press D for chaos, drag on the image to mosh.');
 }
 requestAnimationFrame(frame);
